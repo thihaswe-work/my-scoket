@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Chat</title>
+    <script src="/js/check-login.js" defer></script>
+
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        height: 100%;
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          sans-serif;
+        background: #e5e7eb;
+      }
+
+      body {
+        display: flex;
+      }
+
+      .container {
+        width: 100%;
+        height: 100%;
+        background: #ffffff;
+        display: flex;
+        flex-direction: column;
+      }
+
+      /* HEADER */
+      .header {
+        height: 60px;
+        padding: 0 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid #e5e7eb;
+        background: #f9fafb;
+        flex-shrink: 0;
+      }
+
+      .header .user {
+        font-weight: 600;
+        font-size: 16px;
+      }
+
+      .header button {
+        margin-left: 8px;
+        padding: 6px 12px;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .profile-btn {
+        background: #22c55e;
+        color: #fff;
+      }
+
+      .logout-btn {
+        background: #ef4444;
+        color: #fff;
+      }
+
+      /* MESSAGES */
+      .messages {
+        flex: 1;
+        padding: 16px;
+        overflow-y: auto;
+        list-style: none;
+        margin: 0;
+        background: #f3f4f6;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .message {
+        max-width: 70%;
+        padding: 10px 14px;
+        border-radius: 14px;
+        font-size: 15px;
+        line-height: 1.4;
+        word-break: break-word;
+      }
+
+      .message.other {
+        background: #ffffff;
+        align-self: flex-start;
+        border: 1px solid #e5e7eb;
+      }
+
+      .message.me {
+        background: #2563eb;
+        color: white;
+        align-self: flex-end;
+      }
+
+      /* INPUT */
+      form {
+        display: flex;
+        gap: 10px;
+        padding: 12px;
+        border-top: 1px solid #e5e7eb;
+        background: #ffffff;
+        flex-shrink: 0;
+      }
+
+      form input {
+        flex: 1;
+        padding: 12px 14px;
+        border-radius: 20px;
+        border: 1px solid #d1d5db;
+        font-size: 15px;
+        outline: none;
+      }
+
+      form input:focus {
+        border-color: #2563eb;
+      }
+
+      form button {
+        padding: 0 18px;
+        border-radius: 20px;
+        border: none;
+        background: #2563eb;
+        color: #fff;
+        font-size: 15px;
+        cursor: pointer;
+      }
+
+      form button:hover {
+        background: #1e40af;
+      }
+    </style>
+  </head>
+
+  <body>
+    <div class="container">
+      <!-- HEADER -->
+      <div class="header">
+        <span class="user" id="username">User</span>
+        <div>
+          <button class="profile-btn" id="profileBtn">Profile</button>
+          <button class="logout-btn" id="logoutBtn">Logout</button>
+        </div>
+      </div>
+
+      <!-- CHAT -->
+      <ul class="messages" id="messages"></ul>
+
+      <!-- INPUT -->
+      <form id="form">
+        <input id="input" placeholder="Write a message..." autocomplete="off" />
+        <button type="submit">Send</button>
+      </form>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+      const socket = io();
+      const form = document.getElementById("form");
+      const input = document.getElementById("input");
+      const messages = document.getElementById("messages");
+      const logoutBtn = document.getElementById("logoutBtn");
+
+      const user = JSON.parse(localStorage.getItem("user"));
+
+      if (user) {
+        document.getElementById("username").textContent = user.name;
+      }
+      form.addEventListener("submit", (e) => {
+        e.preventDefault();
+        if (!input.value) return;
+
+        socket.emit("chat message", {
+          text: input.value,
+          senderId: user.id,
+        });
+
+        input.value = "";
+      });
+
+      socket.on("chat message", (msg) => {
+        const isMe = msg.senderId === user.id;
+        addMessage(msg.text, isMe);
+      });
+
+      function addMessage(text, isMe) {
+        const li = document.createElement("li");
+        li.className = `message ${isMe ? "me" : "other"}`;
+        li.textContent = text;
+        messages.appendChild(li);
+        messages.scrollTop = messages.scrollHeight;
+      }
+
+      logoutBtn.addEventListener("click", () => {
+        localStorage.clear();
+        window.location.href = "/auth/login";
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Admin - Users</title>
+    <style>
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        margin: 0;
+        padding: 20px;
+        background: #f4f6f8;
+        color: #333;
+      }
+
+      h1 {
+        margin-bottom: 20px;
+      }
+
+      .card {
+        background: #fff;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+        max-width: 500px;
+      }
+
+      .card h3 {
+        margin-top: 0;
+      }
+
+      .card input {
+        width: calc(100% - 20px);
+        padding: 8px 10px;
+        margin: 8px 0;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+
+      .card button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        padding: 10px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .card button:hover {
+        background-color: #45a049;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        background: #fff;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      th,
+      td {
+        padding: 12px 15px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+      }
+
+      th {
+        background-color: #f0f0f0;
+      }
+
+      tr:hover {
+        background-color: #f9f9f9;
+      }
+
+      button.update {
+        background-color: #2196f3;
+      }
+
+      button.update:hover {
+        background-color: #1976d2;
+      }
+
+      button.delete {
+        background-color: #f44336;
+      }
+
+      button.delete:hover {
+        background-color: #d32f2f;
+      }
+
+      input.inline-input {
+        width: 90%;
+        padding: 4px 6px;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>User Admin</h1>
+
+    <div class="card">
+      <h3>Create User</h3>
+      <input id="name" placeholder="Name" />
+      <input id="email" placeholder="Email" />
+      <input id="password" placeholder="Password" type="password" />
+      <button onclick="createUser()">Create</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="users"></tbody>
+    </table>
+
+    <script>
+      const API = "/admin";
+
+      async function loadUsers() {
+        const res = await fetch(API);
+        const users = await res.json();
+
+        const tbody = document.getElementById("users");
+        tbody.innerHTML = "";
+
+        users.forEach((u) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+          <td>${u.id}</td>
+          <td><input class="inline-input" value="${u.name}" id="name-${u.id}" /></td>
+          <td><input class="inline-input" value="${u.email}" id="email-${u.id}" /></td>
+          <td>
+            <button class="update" onclick="updateUser(${u.id})">Update</button>
+            <button class="delete" onclick="deleteUser(${u.id})">Delete</button>
+          </td>
+        `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      async function createUser() {
+        const nameInput = document.getElementById("name");
+        const emailInput = document.getElementById("email");
+        const passwordInput = document.getElementById("password");
+
+        await fetch(API, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: nameInput.value,
+            email: emailInput.value,
+            password: passwordInput.value,
+          }),
+        });
+
+        nameInput.value = "";
+        emailInput.value = "";
+        passwordInput.value = "";
+        loadUsers();
+      }
+
+      async function updateUser(id) {
+        await fetch(`${API}/${id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: document.getElementById(`name-${id}`).value,
+            email: document.getElementById(`email-${id}`).value,
+          }),
+        });
+
+        loadUsers();
+      }
+
+      async function deleteUser(id) {
+        await fetch(`${API}/${id}`, { method: "DELETE" });
+        loadUsers();
+      }
+
+      loadUsers();
+    </script>
+  </body>
+</html>

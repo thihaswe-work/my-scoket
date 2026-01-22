@@ -4,9 +4,9 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { Server } from "socket.io";
 import authRouter from "./routes/auth.route.js";
-
-// ← IMPORT DB HERE
-import db from "./utils/db.js"; // <--- a
+import adminRouter from "./routes/admin.route.js";
+import setupSocket from "./utils/socket.js";
+import db from "./utils/db.js";
 const port = 5000;
 const app = express();
 const server = createServer(app);
@@ -23,32 +23,9 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", authRouter);
+app.use("/admin/", adminRouter);
 
-/**
- * Socket.IO
- */
-io.on("connection", (socket) => {
-  console.log("connected:", socket.id);
-
-  socket.on("chat message", async (payload) => {
-    if (!payload?.text || !payload?.senderId) return;
-
-    await db.run(
-      "INSERT INTO messages (sender_id, message) VALUES (?, ?)",
-      payload.senderId,
-      payload.text,
-    );
-
-    io.emit("chat message", {
-      text: payload.text,
-      senderId: payload.senderId,
-      createdAt: new Date().toISOString(),
-    });
-  });
-  socket.on("disconnect", () => {
-    console.log("disconnected:", socket.id);
-  });
-});
+setupSocket(io, db);
 
 server.listen(port, () => {
   console.log(`server listening on port ${port}`);

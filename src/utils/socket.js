@@ -6,6 +6,7 @@ export default function setupSocket(io, db) {
   io.on("connection", (socket) => {
     console.log("connected:", socket.id);
 
+    // Identify user
     socket.on("identify", (userId) => {
       if (!onlineUsers.has(userId)) {
         onlineUsers.set(userId, []);
@@ -16,11 +17,14 @@ export default function setupSocket(io, db) {
       io.emit("online-users", Array.from(onlineUsers.keys()));
     });
 
+    // Global chat message (optional)
     socket.on("chat message", async (payload) => {
       if (!payload?.text || !payload?.senderId) return;
 
+      // For global messages, use room_id = NULL (or create a global room if needed)
       await db.run(
-        "INSERT INTO messages (sender_id, message) VALUES (?, ?)",
+        "INSERT INTO messages (room_id, sender_id, content) VALUES (?, ?, ?)",
+        null,
         payload.senderId,
         payload.text,
       );
@@ -32,15 +36,37 @@ export default function setupSocket(io, db) {
       });
     });
 
-    // Join a room (room name can be private: e.g., "user1_user2")
-    socket.on("join room", (roomName) => {
+    // Join a specific room
+    socket.on("join room", async (roomName) => {
       socket.join(roomName);
-      console.log(`${socket.id} joined room ${roomName}`);
+      console.log(`Socket ${socket.id} joined room ${roomName}`);
     });
 
-    // Sending message to a specific room
-    socket.on("room message", ({ roomName, senderId, text }) => {
-      io.to(roomName).emit("room message", { senderId, text });
+    // Send message to a specific room
+    socket.on("room message", async ({ roomName, senderId, text }) => {
+      if (!roomName || !senderId || !text) return;
+
+      // Save to DB: find room_id by roomName
+      const room = await db.get(
+        "SELECT id FROM rooms WHERE name = ? OR id = ?",
+        roomName,
+        roomName,
+      );
+      if (room) {
+        await db.run(
+          "INSERT INTO messages (room_id, sender_id, content) VALUES (?, ?, ?)",
+          room.id,
+          senderId,
+          text,
+        );
+      }
+
+      // Broadcast to all clients in room
+      io.to(roomName).emit("room message", {
+        senderId,
+        text,
+        createdAt: new Date().toISOString(),
+      });
     });
 
     // Chat namespace
@@ -49,7 +75,6 @@ export default function setupSocket(io, db) {
       console.log("User connected to chat namespace");
 
       socket.on("message", (msg) => {
-        // Broadcast chat messages to all clients in /chat
         chatNamespace.emit("message", msg);
       });
     });
@@ -59,10 +84,8 @@ export default function setupSocket(io, db) {
     notificationsNamespace.on("connection", (socket) => {
       console.log("User connected to notifications namespace");
 
-      // Send a welcome notification
       socket.emit("notification", "Welcome to notifications!");
 
-      // Example: send notifications periodically
       setInterval(() => {
         socket.emit(
           "notification",
@@ -71,14 +94,14 @@ export default function setupSocket(io, db) {
       }, 10000);
     });
 
+    // Disconnect
     socket.on("disconnect", () => {
-      // Remove socket from onlineUsers map
       for (const [userId, sockets] of onlineUsers.entries()) {
         const index = sockets.indexOf(socket.id);
         if (index !== -1) {
-          sockets.splice(index, 1); // remove this socket
+          sockets.splice(index, 1);
           if (sockets.length === 0) {
-            onlineUsers.delete(userId); // no more sockets, user offline
+            onlineUsers.delete(userId);
             console.log(`User ${userId} went offline`);
           }
           break;

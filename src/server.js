@@ -7,6 +7,7 @@ import authRouter from "./routes/auth.route.js";
 import adminRouter from "./routes/admin.route.js";
 import setupSocket from "./utils/socket.js";
 import db from "./utils/db.js";
+
 const port = 5000;
 const app = express();
 const server = createServer(app);

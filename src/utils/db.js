@@ -1,4 +1,3 @@
-// db.js (or wherever you setup SQLite)
 import sqlite3 from "sqlite3";
 import { open } from "sqlite";
 import { join } from "node:path";
@@ -7,6 +6,9 @@ export const db = await open({
   filename: join(process.cwd(), "db.sqlite"),
   driver: sqlite3.Database,
 });
+
+// Enable foreign key enforcement
+await db.run("PRAGMA foreign_keys = ON;");
 
 // Users table
 await db.exec(`
@@ -19,7 +21,7 @@ await db.exec(`
   )
 `);
 
-// Rooms table (private or group)
+// Rooms table
 await db.exec(`
   CREATE TABLE IF NOT EXISTS rooms (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,6 +65,13 @@ await db.run(`
     ('user3', 'user3@gmail.com', '123')
 `);
 
-console.log("Database ready with users and rooms seeded.");
+// =========================
+// SEED ROOMS
+// =========================
+// await db.run(`
+//   INSERT OR IGNORE INTO rooms (name)
+//   VALUES ('General Chat')
+// `);
 
+console.log("Database ready with users and rooms seeded.");
 export default db;

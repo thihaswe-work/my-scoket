@@ -64,7 +64,7 @@ body {
    USER INFO (TOP)
 ========================= */
 .profile-btn {
-  display: flex;
+  margin: 0 auto;
   align-items: center;
   gap: 12px;
   padding: 12px;

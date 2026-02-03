@@ -1,4 +1,5 @@
 import { db } from "../utils/db.js";
+
 export const registerController = async (req, res) => {
   const { email, name, password } = req.body;
   console.log(email, name, password);

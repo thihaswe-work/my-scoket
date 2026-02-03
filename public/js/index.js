@@ -24,33 +24,45 @@ const input = document.getElementById("input");
 const messages = document.getElementById("messages");
 const logoutBtn = document.getElementById("logoutBtn");
 const onlineDiv = document.getElementById("onlineUsers");
+const offlineDiv = document.getElementById("offlineUsers");
 const profileBtn = document.getElementById("profileBtn");
 const user = JSON.parse(localStorage.getItem("user"));
-
-// Show logged-in user in sidebar
+const welcome = document.getElementById("welcome");
 const nameEl = document.createElement("h5");
 nameEl.textContent = user.name;
 profileBtn.append(nameEl);
 
-// Identify user to server
-socket.emit("identify", user.id);
+// Render all users excluding self
+const fetchUsers = async (onlineUserIds) => {
+  try {
+    const response = await fetch("http://localhost:5000/users", {
+      method: "GET",
+    });
 
-// Listen for online users
-socket.on("online-users", (users) => {
-  renderOnlineUsers(users);
-});
+    const data = await response.json();
+    offlineUsers = data
+      .filter((user) => !onlineUserIds.includes(user.id))
+      .map((data) => data.id);
+
+    renderUsers(offlineUsers, "offline");
+  } catch (err) {
+    console.log(err);
+  }
+};
 
 // Render online users excluding self
-function renderOnlineUsers(users) {
-  onlineDiv.innerHTML = "";
+function renderUsers(users, type) {
+  type === "online" ? (onlineDiv.innerHTML = "") : (offlineDiv.innerHTML = " ");
 
   users.forEach((id) => {
     if (id === user.id) return;
 
     const div = document.createElement("div");
-    div.className = "online-user online";
+    div.className = `${type === "online" ? "online-user online" : "offline-user offline"}`;
     div.innerHTML = `<span class="dot"></span> User ${id}`;
-    onlineDiv.appendChild(div);
+    type === "online"
+      ? onlineDiv.appendChild(div)
+      : offlineDiv.appendChild(div);
 
     div.addEventListener("click", () => {
       // Show in header
@@ -62,6 +74,8 @@ function renderOnlineUsers(users) {
 
       // Clear previous messages
       messages.innerHTML = "";
+      welcome.style.display = "none";
+      form.style.display = "flex";
     });
   });
 }
@@ -86,24 +100,6 @@ form.addEventListener("submit", (e) => {
   input.value = "";
 });
 
-// Listen for messages from rooms
-socket.on("room message", (msg) => {
-  // Only show messages if they belong to current room
-  if (!currentRoom || msg.roomName !== currentRoom) return;
-  const isMe = msg.senderId === user.id;
-  addMessage(msg.text, isMe);
-});
-
-socket.on("room history", (messagesArr) => {
-  // Clear existing messages
-  messages.innerHTML = "";
-  console.log("messages history", messagesArr);
-  messagesArr.forEach((msg) => {
-    const isMe = msg.senderId === user.id;
-    addMessage(msg.text, isMe);
-  });
-});
-
 // Helper to add messages to chat
 function addMessage(text, isMe) {
   const li = document.createElement("li");
@@ -118,4 +114,30 @@ function addMessage(text, isMe) {
 logoutBtn.addEventListener("click", () => {
   localStorage.clear();
   window.location.href = "/login.html";
+});
+
+// Identify user to server
+socket.emit("identify", user.id);
+
+// Listen for online users
+socket.on("online-users", (users) => {
+  renderUsers(users, "online");
+  fetchUsers(users);
+});
+
+// Listen for messages from rooms
+socket.on("room message", (msg) => {
+  // Only show messages if they belong to current room
+  if (!currentRoom || msg.roomName !== currentRoom) return;
+  const isMe = msg.senderId === user.id;
+  addMessage(msg.text, isMe);
+});
+
+socket.on("room history", (messagesArr) => {
+  // Clear existing messages
+  messages.innerHTML = "";
+  messagesArr.forEach((msg) => {
+    const isMe = msg.senderId === user.id;
+    addMessage(msg.text, isMe);
+  });
 });

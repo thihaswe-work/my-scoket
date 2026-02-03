@@ -5,11 +5,14 @@ import { dirname, join } from "node:path";
 import { Server } from "socket.io";
 import authRouter from "./routes/auth.route.js";
 import adminRouter from "./routes/admin.route.js";
+import userRouter from "./routes/user.route.js";
 import setupSocket from "./utils/socket.js";
 import db from "./utils/db.js";
+import cors from "cors";
 
 const port = 5000;
 const app = express();
+app.use(cors());
 const server = createServer(app);
 const io = new Server(server);
 
@@ -24,7 +27,8 @@ app.get("/", (req, res) => {
 });
 
 app.use("/auth", authRouter);
-app.use("/admin/", adminRouter);
+app.use("/admin", adminRouter);
+app.use("/users", userRouter);
 
 setupSocket(io, db);
 

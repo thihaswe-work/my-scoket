@@ -61,7 +61,6 @@ export default function setupSocket(io, db) {
 
         // Reverse to send oldest first
         const orderedMessages = messages.reverse() || [];
-        console.log("order messages", orderedMessages);
         // Send only to the socket that joined
         socket.emit("room history", orderedMessages);
       } catch (err) {

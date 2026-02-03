@@ -1,8 +1,10 @@
 import db from "../utils/db.js";
+
 export const getAllUsers = async (req, res) => {
   const users = await db.all("SELECT id, name, email, created_at FROM users");
   res.json(users);
 };
+
 export const createUser = async (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
@@ -18,6 +20,7 @@ export const createUser = async (req, res) => {
 
   res.json({ message: "User created" });
 };
+
 export const updateUser = async (req, res) => {
   const { id } = req.params;
   const { name, email } = req.body;
@@ -31,6 +34,7 @@ export const updateUser = async (req, res) => {
 
   res.json({ message: "User updated" });
 };
+
 export const deleteUser = async (req, res) => {
   const { id } = req.params;
 

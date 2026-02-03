@@ -17,6 +17,9 @@ notificationsSocket.on("notification", (msg) =>
 );
 
 let currentRoom = null;
+let unreadCounts = {};
+
+let gotMessages = {};
 
 const chatWithEl = document.getElementById("chatWith");
 const form = document.getElementById("form");
@@ -50,19 +53,41 @@ const fetchUsers = async (onlineUserIds) => {
   }
 };
 
+const fetchLastMessages = async () => {
+  try {
+    const response = await fetch(
+      `http://localhost:5000/last-messages/${user.id}`,
+      {
+        method: "GET",
+      },
+    );
+
+    const data = await response.json();
+
+    console.log(data);
+    // offlineUsers = data
+    //   .filter((user) => !onlineUserIds.includes(user.id))
+    //   .map((data) => data.id);
+
+    // renderUsers(offlineUsers, "offline");
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 // Render online users excluding self
 function renderUsers(users, type) {
-  type === "online" ? (onlineDiv.innerHTML = "") : (offlineDiv.innerHTML = " ");
+  const container = type === "online" ? onlineDiv : offlineDiv;
+  container.innerHTML = "";
 
   users.forEach((id) => {
     if (id === user.id) return;
 
     const div = document.createElement("div");
     div.className = `${type === "online" ? "online-user online" : "offline-user offline"}`;
-    div.innerHTML = `<span class="dot"></span> User ${id}`;
-    type === "online"
-      ? onlineDiv.appendChild(div)
-      : offlineDiv.appendChild(div);
+    div.dataset.userId = id;
+    div.innerHTML = `<span class="dot"></span> User ${id} <span class="badge" style="display:none;">0</span>`;
+    container.appendChild(div);
 
     div.addEventListener("click", () => {
       // Show in header
@@ -74,8 +99,21 @@ function renderUsers(users, type) {
 
       // Clear previous messages
       messages.innerHTML = "";
+
+      // Render stored messages if any
+      if (gotMessages[currentRoom]) {
+        gotMessages[currentRoom].forEach((msg) => {
+          addMessage(msg.text, msg.senderId === user.id);
+        });
+        gotMessages[currentRoom] = [];
+      }
+
       welcome.style.display = "none";
       form.style.display = "flex";
+
+      // Clear unread badge
+      unreadCounts[currentRoom] = 0;
+      div.querySelector(".badge").style.display = "none";
     });
   });
 }
@@ -123,14 +161,35 @@ socket.emit("identify", user.id);
 socket.on("online-users", (users) => {
   renderUsers(users, "online");
   fetchUsers(users);
+  fetchLastMessages();
 });
 
 // Listen for messages from rooms
+
 socket.on("room message", (msg) => {
-  // Only show messages if they belong to current room
-  if (!currentRoom || msg.roomName !== currentRoom) return;
-  const isMe = msg.senderId === user.id;
-  addMessage(msg.text, isMe);
+  const isCurrentRoom = currentRoom && msg.roomName === currentRoom;
+
+  if (isCurrentRoom) {
+    addMessage(msg.text, msg.senderId === user.id);
+  } else {
+    // Store message in gotMessages
+    if (!gotMessages[msg.roomName]) {
+      gotMessages[msg.roomName] = [];
+    } else {
+      gotMessages[msg.roomName].push(msg);
+    }
+    // Increment unread count for this room
+    unreadCounts[msg.roomName] = (unreadCounts[msg.roomName] || 0) + 1;
+
+    // Show badge
+    const otherUserId = msg.roomName.split("_").find((id) => id != user.id);
+    const userDiv = document.querySelector(`[data-user-id="${otherUserId}"]`);
+    if (userDiv) {
+      const badge = userDiv.querySelector(".badge");
+      badge.style.display = "inline-block";
+      badge.textContent = unreadCounts[msg.roomName];
+    }
+  }
 });
 
 socket.on("room history", (messagesArr) => {
@@ -140,4 +199,20 @@ socket.on("room history", (messagesArr) => {
     const isMe = msg.senderId === user.id;
     addMessage(msg.text, isMe);
   });
+});
+
+socket.on("new-message-notification", (msg) => {
+  // Show notification in UI
+  console.log(
+    "New message from",
+    msg.senderId,
+    "in room",
+    msg.roomName,
+    "message is",
+    msg,
+  );
+
+  // Optional: show badge on room list
+  const roomEl = document.querySelector(`#room-${msg.roomName}`);
+  if (roomEl) roomEl.classList.add("unread");
 });

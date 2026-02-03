@@ -54,6 +54,18 @@ await db.exec(`
   )
 `);
 
+await db.exec(`
+  
+  CREATE TABLE IF NOT EXISTS user_last_seen_message (
+  user_id INTEGER NOT NULL,
+    room_id INTEGER NOT NULL,
+    last_message_id INTEGER NOT NULL,
+    PRIMARY KEY(user_id, room_id),
+    FOREIGN KEY(user_id) REFERENCES users(id),
+    FOREIGN KEY(last_message_id) REFERENCES messages(id)
+
+  )`);
+
 // =========================
 // SEED USERS
 // =========================

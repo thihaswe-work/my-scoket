@@ -36,6 +36,24 @@ export default function setupSocket(io, db) {
           console.log(`Created new room "${roomName}" with id ${room.id}`);
         }
 
+        // Get last message in the room
+        const lastMessage = await db.get(
+          "SELECT id FROM messages WHERE room_id = ? ORDER BY created_at DESC LIMIT 1",
+          room.id,
+        );
+
+        if (lastMessage) {
+          await db.run(
+            `INSERT INTO user_last_seen_message(user_id, room_id, last_message_id)
+       VALUES(?, ?, ?)
+       ON CONFLICT(user_id, room_id) 
+       DO UPDATE SET last_message_id=excluded.last_message_id`,
+            userId,
+            room.id,
+            lastMessage.id,
+          );
+        }
+
         // Ensure this user is in the room_users table
         const roomUser = await db.get(
           "SELECT id FROM room_users WHERE room_id = ? AND user_id = ?",
@@ -91,6 +109,28 @@ export default function setupSocket(io, db) {
         text,
         createdAt: new Date().toISOString(),
       });
+
+      // Notify users in other rooms
+      const usersInRoom = await db.all(
+        "SELECT user_id FROM room_users WHERE room_id = ? AND user_id != ?",
+        room.id,
+        senderId,
+      );
+
+      for (const { user_id } of usersInRoom) {
+        const sockets = onlineUsers.get(user_id) || [];
+        for (const sockId of sockets) {
+          // Only notify if they are NOT in the current room
+          const socketRoom = Array.from(io.sockets.sockets.get(sockId).rooms);
+          if (!socketRoom.includes(roomName)) {
+            io.to(sockId).emit("new-message-notification", {
+              roomName,
+              text,
+              senderId,
+            });
+          }
+        }
+      }
     });
 
     socket.on("disconnect", () => {
